@@ -7,3 +7,5 @@ require (
 	github.com/sergi/go-diff v1.0.0
 	github.com/stretchr/testify v1.2.2 // indirect
 )
+
+go 1.13

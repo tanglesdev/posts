@@ -9,15 +9,21 @@ import (
 
 // Post is a single, self-contained entry in a blog.
 type Post struct {
-	ID          string
-	Title       string
-	Slug        string
-	Summary     string
-	Authors     []string
-	Parts       []Part
+	ID       string
+	Title    string
+	Slug     string
+	Authors  []string
+	Parts    []Part
+	Metadata []Part
+	// TODO: instead of storing timestamps here, do we want to have event logs for created, updated, publish, unpublish, etc?
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 	PublishedAt time.Time
-	Draft       bool
-	Streams     []string
+	// worth having draft normalized here instead of reconstructing it from
+	// event logs so we can filter on it cheaply when coming up with post
+	// listings
+	Draft   bool
+	Streams []string
 }
 
 // Part is a single part of a post, either a paragraph
@@ -115,11 +121,12 @@ type Revision struct {
 	Reason string
 
 	// what changes were made in this revision
-	TitleDelta    string
-	SlugDelta     string
-	SummaryDelta  string
-	AuthorsDeltas []AuthorsDelta
-	PartsDeltas   []PartDelta
+	TitleDelta     string
+	SlugDelta      string
+	SummaryDelta   string
+	AuthorsDeltas  []AuthorsDelta
+	PartsDeltas    []PartDelta
+	MetadataDeltas []PartDelta
 }
 
 // diffAuthors returns the AuthorsDeltas necessary to describe
@@ -175,11 +182,11 @@ func diffParts(p1, p2 []Part) []PartDelta {
 	var deltas []PartDelta
 	p1Pos := make(map[string]int, len(p1))
 	p2Pos := make(map[string]int, len(p2))
-	for _, part := range p1 {
-		p1Pos[part.ID] = part.Position
+	for pos, part := range p1 {
+		p1Pos[part.ID] = pos
 	}
-	for _, part := range p2 {
-		p2Pos[part.ID] = part.Position
+	for pos, part := range p2 {
+		p2Pos[part.ID] = pos
 	}
 	longer := p1
 	if len(p2) > len(p1) {
@@ -310,11 +317,9 @@ func GenRevision(p1, p2 Post) (Revision, error) {
 	if p1.Slug != p2.Slug {
 		rev.SlugDelta = deltaFromStrings(p1.Slug, p2.Slug)
 	}
-	if p1.Summary != p2.Summary {
-		rev.SummaryDelta = deltaFromStrings(p1.Summary, p2.Summary)
-	}
 	rev.AuthorsDeltas = diffAuthors(p1.Authors, p2.Authors)
 	rev.PartsDeltas = diffParts(p1.Parts, p2.Parts)
+	// TODO: diff metadata
 	return rev, nil
 }
 
